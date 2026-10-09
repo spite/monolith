@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>monolith</title>
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <meta property="og:url" content="https://www.clicktorelease.com/code/monolith" />
+  <meta property="og:title" content="monolith" />
+  <meta property="og:description" content="NVSCENE 2015" />
+  <meta property="og:image" content="https://www.clicktorelease.com/code/monolith/thumb.jpg" />
+  <meta name="description" content="NVSCENE 2015">
+  <meta itemprop="name" content="monolith">
+  <meta itemprop="description" content="NVSCENE 2015">
+  <meta itemprop="image" content="https://www.clicktorelease.com/code/monolith/thumb.jpg">
+  <!--<link href='https://fonts.googleapis.com/css?family=Raleway:400,200,600' rel='stylesheet' type='text/css'>-->
+  <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet' type='text/css'>
+  <style>
+    *{box-sizing: border-box; margin: 0; padding: 0; }
+    body{overflow:hidden; background-color: black; font-family: Montserrat, sans-serif; color: white; white-space: nowrap; background-color: black; }
+    #container{ position: absolute; left: 0; top: 50%; right: 0; width: 100%; height: 100%; transform: translate3d( 0, -50%, 0 ); -webkit-transform: translate3d( 0, -50%, 0 );}
+    #credits{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 ); text-transform: uppercase ; text-align: center; pointer-events: none; opacity: 0;}
+    #credits h1{ font-size: 50px;}
+    #credits h2{ font-size: 25px; text-transform: lowercase; margin-bottom: 80px;}
+    #credits h3{ font-size: 18px; text-transform: lowercase;  }
+    #meter{ position: absolute; left: 10px; top: 10px; z-index: 100; color: #ff00ff; display: none;}
+    #start{ position: absolute;; left: 0; top: 0; right: 0; bottom: 0; opacity: 0; transition: opacity 1s ease-out; webkit-transition: opacity 1s ease-out; text-align: center}
+    #start p{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 );}
+    #loading{ position: absolute;; left: 0; top: 0; right: 0; bottom: 0; transition: opacity 1s ease-out; webkit-transition: opacity 1s ease-out; text-align: center; pointer-events: none;}
+    #loading p{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 );}
+  </style>
+</head>
+
+<body>
+  <div id="container"></div>
+  <div id="credits">
+    <h1>monolith</h1>
+    <h2>awwz · cabbibo · spite</h2>
+    <h3>farbrausch kewlers mfx xplsv threepixels</h3>
+    <h3>tbl asd rgba exceed fairlight excess tpolm</h3>
+  </div>
+  <div id="meter"></div>
+  <div id="start">
+    <p>Click to start</p>
+  </div>
+  <div id="loading">
+    <p>Loading...</p>
+  </div>
+  <script src="js/three.min.js"></script>
+  <!--<script src="js/DDSLoader.js"></script>-->
+  <script src="js/OBJLoader.js"></script>
+  <script src="js/OrbitControls.js"></script>
+  <script src="js/ImprovedNoise.js"></script>
+  <script src="Wagner/Wagner.js"></script>
+  <script src="Wagner/Wagner.base.js"></script>
+  <script src="Wagner/Wagner.extras.js"></script>
+  <script src="Wagner/ShaderLoader.js"></script>
+  <!--<script src="js/timeline.js"></script>
+<script src="js/storyboard.js"></script>-->
+  <script src="js/AugmentedCompileShader.js"></script>
+  <script src="js/storyline.js"></script>
+  <script src="assets/storyboard.js"></script>
+  <script id="sem-vs" type="x-shader/x-vertex">
+    varying vec2 vN;
+
+void main() {
+
+    vec4 p = vec4( position, 1. );
+
+    vec3 e = normalize( vec3( modelViewMatrix * p ) );
+    vec3 n = normalize( normalMatrix * normal );
+
+    vec3 r = reflect( e, n );
+    float m = 2. * sqrt(
+        pow( r.x, 2. ) +
+        pow( r.y, 2. ) +
+        pow( r.z + 1., 2. )
+    );
+    vN = r.xy / m + .5;
+
+    gl_Position = projectionMatrix * modelViewMatrix * p;
+
+}
+
+</script>
+  <script id="sem-fs" type="x-shader/x-fragment">
+    uniform sampler2D tMatCap;
+uniform vec3 fogColor;
+
+varying vec2 vN;
+
+float fogFactorExp2(
+  const float dist,
+  const float density
+) {
+  const float LOG2 = -1.442695;
+  float d = density * dist;
+  return 1.0 - clamp(exp2(d * d * LOG2), 0.0, 1.0);
+}
+
+void main() {
+
+    vec3 base = texture2D( tMatCap, vN ).rgb;
+
+    float fogDistance = gl_FragCoord.z / gl_FragCoord.w;
+  float fogAmount = fogFactorExp2( fogDistance, .02 );
+
+  base = mix( base, fogColor, fogAmount );
+
+    gl_FragColor = vec4( base, 1. );
+
+}
+
+</script>
+  <script id="monolith-vs" type="x-shader/x-vertex">
+    varying vec3 vWorldPosition;
+varying vec3 vWorldNormal;
+
+void main() {
+
+  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+  vWorldPosition = ( modelMatrix * vec4( position, 1.0 ) ).xyz;
+  vWorldNormal = mat3( modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz ) * normal;
+
+}
+
+</script>
+  <script id="monolith-fs" type="x-shader/x-fragment">
+    uniform sampler2D skyMap;
+uniform vec3 fogColor;
+varying vec3 vWorldPosition;
+varying vec3 vWorldNormal;
+
+float PI = 3.14159265358979323846264;
+
+vec2 normalToUV( vec3 n ) {
+
+  vec3 normal = normalize( n );
+  float lon = atan( n.z, n.x );
+  float lat = asin( -n.y );
+  vec2 uv = 0.5 - vec2( lon, lat ) / vec2( PI * 2.0, PI );
+
+    return uv;
+
+}
+
+float fogFactorExp2(
+  const float dist,
+  const float density
+) {
+  const float LOG2 = -1.442695;
+  float d = density * dist;
+  return 1.0 - clamp(exp2(d * d * LOG2), 0.0, 1.0);
+}
+
+void main() {
+
+  vec3 vReflect = reflect( normalize( vWorldPosition - cameraPosition ), normalize( vWorldNormal ) );
+  vec3 light = texture2D( skyMap, normalToUV( vReflect ), 1. ).rgb;
+  light -= .7;
+  light *= 3.;
+
+  float fogDistance = gl_FragCoord.z / gl_FragCoord.w;
+  float fogAmount = fogFactorExp2( fogDistance, .02 );
+
+  vec3 color = vec3( 0. );
+  color += light;
+
+  color = mix( color, fogColor, fogAmount );
+
+  gl_FragColor = vec4( color, 1. );
+
+}
+
+</script>
+  <script id="landscape-vs" type="x-shader/x-vertex">
+    attribute vec4 tangent;
+varying vec3 pos;
+varying vec3 vNormal, vBinormal, vTangent;
+varying vec3 vEye;
+varying vec3 vReflect, vRefract;
+
+uniform sampler2D heightMap;
+uniform int showDepth;
+
+varying vec2 vUv;
+varying vec3 vPosition;
+varying mat3 vMM;
+varying float vHeight;
+varying float depth;
+
+uniform float mNear;
+uniform float mFar;
+uniform float time;
+uniform float displacement;
+
+mat3 m3( mat4 mIn ) {
+
+  mat3 mOut;
+
+  mOut[ 0 ][ 0 ] = mIn[ 0 ][ 0 ];
+  mOut[ 0 ][ 1 ] = mIn[ 0 ][ 1 ];
+  mOut[ 0 ][ 2 ] = mIn[ 0 ][ 2 ];
+
+  mOut[ 1 ][ 0 ] = mIn[ 1 ][ 0 ];
+  mOut[ 1 ][ 1 ] = mIn[ 1 ][ 1 ];
+  mOut[ 1 ][ 2 ] = mIn[ 1 ][ 2 ];
+
+  mOut[ 2 ][ 0 ] = mIn[ 2 ][ 0 ];
+  mOut[ 2 ][ 1 ] = mIn[ 2 ][ 1 ];
+  mOut[ 2 ][ 2 ] = mIn[ 2 ][ 2 ];
+
+  return mOut;
+}
+
+void main() {
+
+  vec2 repeat = vec2( 1. );
+  vUv = repeat * uv;
+
+  vec3 nPos = position;
+  vHeight = texture2D( heightMap, vUv ).r;
+  nPos.z += 10. * vHeight;
+  if( displacement != 0. ) {
+    float d = length( position.xy );
+    nPos.z += displacement * .01 * d * .5 * sin( d + 10. * time );
+  }
+
+  vec3 n = normalize( normalMatrix * normal );
+
+  vec4 viewPos = vec4( modelViewMatrix * vec4( nPos, 1.0 ) );
+  gl_Position = projectionMatrix * viewPos;
+  vNormal = normalize( normalMatrix * normal );
+
+  vEye = viewPos.xyz;
+
+  vec4 mPosition = modelMatrix * vec4( nPos, 1.0 );
+  vec3 nWorld = normalize( mat3( modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz ) * normal );
+  vReflect = normalize( reflect( normalize( mPosition.xyz - cameraPosition ), nWorld ) );
+  vRefract = normalize( refract( normalize( mPosition.xyz - cameraPosition ), nWorld, 0.6 ) );
+
+  depth = (-viewPos.z-mNear)/(mFar-mNear);
+
+}
+
+</script>
+  <script id="landscape-fs" type="x-shader/x-vertex">
+    uniform sampler2D heightMap;
+uniform sampler2D diffuseMap;
+uniform sampler2D rockMap;
+uniform sampler2D skyMap;
+uniform sampler2D normalMap;
+uniform sampler2D detailNormalMap;
+uniform sampler2D cloudMap;
+uniform sampler2D shadowMap;
+uniform vec3 fogColor;
+uniform int showDepth;
+
+varying vec2 vUv;
+varying vec3 vEye;
+varying vec3 vNormal, vBinormal, vTangent;
+varying vec3 vPosition;
+varying mat3 vMM;
+varying vec3 vReflect, vRefract;
+varying float vHeight;
+varying float depth;
+
+float PI = 3.14159265358979323846264;
+
+vec2 normalToUV( vec3 n ) {
+
+  vec3 normal = normalize( n );
+  float lon = atan( n.z, n.x );
+  float lat = asin( -n.y );
+  vec2 uv = 0.5 - vec2( lon, lat ) / vec2( PI * 2.0, PI );
+
+    return uv;
+
+}
+
+float fogFactorExp2(
+  const float dist,
+  const float density
+) {
+  const float LOG2 = -1.442695;
+  float d = density * dist;
+  return 1.0 - clamp(exp2(d * d * LOG2), 0.0, 1.0);
+}
+
+void main() {
+
+  if( showDepth == 1 ) {
+    float d = 1. - depth;
+    gl_FragColor = vec4( d, d, d, 1. );
+    return;
+  }
+
+  vec3 finalNormal = vNormal;
+
+  float normalRepeat = 20.;
+  vec3 normalTex = texture2D( normalMap, vUv * normalRepeat ).xyz * 2.0 - 1.0;
+  vec3 detailNormalTex = texture2D( detailNormalMap, vUv * 1. * normalRepeat ).xyz * 2.0 - 1.0;
+  normalTex = mix( normalTex, detailNormalTex, .5 );
+
+  float normalScale = 1.;
+  normalTex.xy *= normalScale;
+  normalTex = normalize( normalTex );
+
+  float fresnel = .7 * abs( dot( vNormal, normalize( vEye ) ) );
+  fresnel = ( 1. - smoothstep( 0.0, 1., fresnel ) );
+
+  vec3 disturbedReflect = normalize( vReflect + .5 * normalTex );
+  float lon = atan( disturbedReflect.z, disturbedReflect.x );
+  float lat = asin( -disturbedReflect.y );
+  vec2 vUvEnv = 0.5 - vec2( lon, lat ) / vec2( PI * 2.0, PI );
+  vec3 env = texture2D( skyMap, normalToUV( disturbedReflect ) ).rgb;
+
+  vec3 directVector = normalTex;
+  vec3 light = texture2D( skyMap, normalToUV( directVector * vec3( -1., -1., 1. ) ), 1. ).rgb;
+  light *= .25 + .75 * texture2D( shadowMap, vUv ).r;
+
+  vec3 color = vec3( .75 + .25 * vHeight );
+  color *= mix( texture2D( diffuseMap, vUv ).rgb, texture2D( rockMap, vUv ).rgb, vHeight );
+  color *= light;//mix( light, env, .5 );
+  color *= env;
+
+  //color *= .7 + .3 * texture2D( cloudMap, vUv ).r;
+  color += color;
+
+  float fogDistance = gl_FragCoord.z / gl_FragCoord.w;
+  float fogAmount = fogFactorExp2( fogDistance, .02 );
+
+  color = mix( color, fogColor, fogAmount );
+
+    gl_FragColor = vec4( color, 1. );
+
+}
+
+</script>
+  <script type="x-shader/x-vertex" id="sphere-vs">
+    #define SPHERES 300
+
+varying vec3 vPosition;
+varying float occlusion;
+varying vec3 vNormal;
+
+uniform vec3 positions[ SPHERES ];
+uniform float scales[ SPHERES ];
+
+void main() {
+
+  vPosition = ( modelMatrix * vec4( position, 1. ) ).xyz;
+  gl_Position = projectionMatrix *  modelViewMatrix * vec4( position, 1. );
+
+  vec3 nWorld = normalize( mat3( modelMatrix[0].xyz, modelMatrix[1].xyz, modelMatrix[2].xyz ) * normal );
+
+  occlusion = 0.;
+  vec3 on = normalize( nWorld );
+
+  float l;
+  float t;
+
+  for( int i = 0; i < SPHERES; i++ ) {
+
+    vec3 dir = positions[ i ] - vPosition;
+    float l = dir.x * dir.x + dir.y * dir.y + dir.z * dir.z;
+    float t = 1. - max( 0., dot( on, dir / sqrt( l ) ) ) * scales[ i ] / l;
+    //float t = 1. - max( 0., dot( on, dir / l ) ) * pow( scales[ i ], 2. ) / pow( l, 2. );
+
+    occlusion += t;
+  }
+
+  occlusion /= float( SPHERES );
+  occlusion = clamp( occlusion, 0., 1. );
+
+  float inBlack = 0.;
+  float inWhite = 255.;
+  float inGamma = 30.;
+  float outBlack = 0.;
+  float outWhite = 255.;
+
+  occlusion = ( pow( ( ( occlusion * 255.0) - inBlack) / (inWhite - inBlack),
+                inGamma) * (outWhite - outBlack) + outBlack) / 255.0;
+
+  vNormal = normalMatrix * normal;
+
+}
+
+</script>
+  <script type="x-shader/x-fragment" id="sphere-fs">
+    varying float occlusion;
+varying vec3 vNormal;
+
+float random(vec3 scale,float seed){return fract(sin(dot(gl_FragCoord.xyz+seed,scale))*43758.5453+seed);}
+
+void main(){
+
+  vec3 color = 1. - vec3( occlusion );
+  gl_FragColor = vec4( color + color, 1. );
+
+}
+
+</script>
+  <script>
+  'use strict'
+
+  WAGNER.vertexShadersPath = 'Wagner/vertex-shaders';
+  WAGNER.fragmentShadersPath = 'Wagner/fragment-shaders';
+  WAGNER.assetsPath = 'Wagner/assets/';
+
+  WAGNER.DepthMixPass = function() {
+
+    WAGNER.Pass.call(this);
+    WAGNER.log('DepthMix Pass constructor');
+    this.loadShader('depth-mixer-fs.glsl');
+
+    this.params.tInput1 = null;
+    this.params.tInput2 = null;
+    this.params.tInput3 = null;
+    this.params.tDepth1 = null;
+    this.params.tDepth2 = null;
+    this.params.tDepth3 = null;
+
+    this.params.opacity = 0;
+
+  };
+
+  WAGNER.DepthMixPass.prototype = Object.create(WAGNER.Pass.prototype);
+
+  WAGNER.DepthMixPass.prototype.run = function(c) {
+
+    this.shader.uniforms.tInput1.value = this.params.tInput1;
+    this.shader.uniforms.tInput2.value = this.params.tInput2;
+    this.shader.uniforms.tInput3.value = this.params.tInput3;
+    this.shader.uniforms.tDepth1.value = this.params.tDepth1;
+    this.shader.uniforms.tDepth2.value = this.params.tDepth2;
+    this.shader.uniforms.tDepth3.value = this.params.tDepth3;
+
+    this.shader.uniforms.opacity.value = this.params.opacity;
+
+    c.pass(this.shader);
+
+  }
+
+  WAGNER.GlitchPass = function() {
+
+    WAGNER.Pass.call(this);
+    WAGNER.log('GlitchLines Pass constructor');
+    this.loadShader('glitch-lines-fs.glsl');
+    this.params.offset = null;
+    this.params.displacement = 0;
+
+  };
+
+  WAGNER.GlitchPass.prototype = Object.create(WAGNER.Pass.prototype);
+
+  WAGNER.GlitchPass.prototype.run = function(c) {
+
+    this.shader.uniforms.offset.value = this.params.offset;
+    this.shader.uniforms.displacement.value = this.params.displacement;
+
+    c.pass(this.shader);
+
+  };
+
+  var audio;
+
+  var scene, camera, controls, renderer, cubeCamera, cubeMapGenerated = false;
+  var sphere;
+
+  var composer, effectComposer,
+    glitchPass, pixelatePass, depthMixPass, bordersPass, cgaPass, glowPass,
+    bleachPass, vignettePass, fxaaPass, noisePass, blendPass, ledPass, blurPass, rgbPass;
+
+  var depthMaterial = new THREE.MeshBasicMaterial();
+
+  var startTime = Date.now();
+  var monolithMaterial, skyMaterial, terrainMaterial;
+
+  var iNoise = new ImprovedNoise();
+
+  var terrainModel, monolithModel, skyModel, effectPlane;
+  var terrainTexture, monolithTexture, effectTexture,
+    terrainDepth, monolithDepth, effectDepth;
+  var container = document.getElementById('container');
+
+  var fogColor = 0x505050;
+
+  var meter = document.getElementById('meter');
+
+  function LayerEffect(renderer, composer) {
+
+    this.renderer = renderer;
+    this.scene = new THREE.Scene();
+
+  }
+
+  LayerEffect.prototype.init = function() {
+
+    console.log('init');
+
+  }
+
+  LayerEffect.prototype.update = function(t) {
+
+  }
+
+  LayerEffect.prototype.render = function(camera) {
+
+    this.renderer.render(this.scene, camera);
+
+  }
+
+  function QuadEffect(renderer, composer) {
+
+    LayerEffect.call(this, renderer, composer);
+
+  }
+
+  QuadEffect.prototype = Object.create(LayerEffect.prototype);
+
+  QuadEffect.prototype.init = function(size, y, shader) {
+
+    this.quad = new THREE.Mesh(
+      new THREE.PlaneGeometry(size, size),
+      shader
+    );
+    this.quad.rotation.y = Math.PI / 2;
+    this.quad.position.x = -10;
+    this.quad.position.y = y;
+    this.scene.add(this.quad);
+
+  }
+
+  QuadEffect.prototype.update = function(t) {
+
+    this.quad.material.uniforms.time.value = t;
+
+  }
+
+  function TrianglesEffect(renderer, composer) {
+
+    LayerEffect.call(this, renderer, composer);
+
+    this.cubes = [];
+
+  }
+
+  TrianglesEffect.prototype = Object.create(LayerEffect.prototype);
+
+  TrianglesEffect.prototype.init = function(height) {
+
+    LayerEffect.prototype.init.call(this);
+
+    this.height = height;
+
+    var g = new THREE.SphereGeometry(1 * 5, 1, 1),
+      m = new THREE.ShaderMaterial({
+        uniforms: {
+          tMatCap: { type: 't', value: loadTexture('assets/matcap.jpg') },
+          fogColor: { type: 'c', value: new THREE.Color(fogColor) },
+        },
+        vertexShader: document.getElementById('sem-vs').textContent,
+        fragmentShader: document.getElementById('sem-fs').textContent,
+        shading: THREE.FlatShading
+      });
+
+    for (var j = 0; j < 10; j++) {
+      var cube = new THREE.Mesh(g, m);
+      var a = Math.random() * 2 * Math.PI;
+      var r = Math.random() * 2;
+      cube.rotation.set(
+        Math.random() * 2 * Math.PI,
+        Math.random() * 2 * Math.PI,
+        Math.random() * 2 * Math.PI
+      );
+      cube.position.set(
+        -10 + r * Math.cos(a),
+        -this.height * Math.random(),
+        r * Math.sin(a)
+      );
+      var s = .1 + .2 * Math.random();
+      s *= 2.;
+      cube.scale.set(s, s, s);
+      cube.speedMultiplier = Math.random();
+      this.scene.add(cube);
+      this.cubes.push(cube);
+    }
+
+
+  }
+
+  TrianglesEffect.prototype.update = function(t) {
+
+    LayerEffect.prototype.update.call(this, t);
+
+    for (var j = 0; j < this.cubes.length; j++) {
+
+      var c = this.cubes[j];
+      c.position.y += .1 * (1 + c.speedMultiplier);
+      if (c.position.y > this.height) c.position.y = -2;
+      c.rotation.y += .6 * t;
+      c.rotation.x += .8 * t;
+    }
+
+  }
+
+  function DisplacementEffect(renderer, composer) {
+
+    LayerEffect.call(this, renderer, composer);
+
+  }
+
+  DisplacementEffect.prototype = Object.create(LayerEffect.prototype);
+
+  DisplacementEffect.prototype.init = function(m) {
+
+    var s = 50;
+    var geometry = new THREE.CubeGeometry(1, 1, 1, s, s, s);
+    this.mesh = new THREE.Mesh(geometry, m);
+    this.mesh.position.x = -10;
+    this.scene.add(this.mesh);
+
+  }
+
+  DisplacementEffect.prototype.update = function(t) {
+
+    this.mesh.rotation.x += .005;
+    this.mesh.rotation.z += .006;
+    this.mesh.material.uniforms.time.value = .5 * t;
+
+  }
+
+  function SpheresEffect(renderer, composer) {
+
+    LayerEffect.call(this, renderer, composer);
+
+  }
+
+  SpheresEffect.prototype = Object.create(LayerEffect.prototype);
+
+  SpheresEffect.prototype.init = function() {
+
+    this.spherePositions = [], this.sphereScales = [];
+    this.spheres = [];
+
+    var g = new THREE.IcosahedronGeometry(.5, 1);
+
+    var material = new THREE.ShaderMaterial({
+      uniforms: {
+        positions: { type: 'v3v', value: null },
+        scales: { type: 'fv1', value: null }
+      },
+      vertexShader: document.getElementById('sphere-vs').textContent,
+      fragmentShader: document.getElementById('sphere-fs').textContent,
+      shading: THREE.FlatShading
+    });
+    //material = new THREE.MeshNormalMaterial();
+    //material = m;
+
+    function addSphere(position, scale) {
+
+
+      return mesh;
+    }
+
+    var targetMarker = new THREE.Mesh(new THREE.IcosahedronGeometry(10, 2), new THREE.MeshNormalMaterial());
+    scene.add(targetMarker);
+    targetMarker.visible = false;
+
+    var position = new THREE.Vector3();
+
+    for (var j = 0; j < 300; j++) {
+
+      var r = 10; //50 + Math.random() * 50;
+      var phi = Math.random() * 2 * Math.PI;
+      var theta = Math.random() * Math.PI;
+      position.set(r * Math.sin(theta) * Math.cos(phi), r * Math.sin(theta) * Math.sin(phi), r * Math.cos(theta));
+
+      var s = 5 + Math.random() * 20;
+      s *= .1;
+
+      var m = new THREE.Mesh(g.clone(), material);
+      m.position.copy(position);
+      m.scale.set(s, s, s);
+      m.rotation.set(Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI, Math.random() * 2 * Math.PI);
+      this.scene.add(m);
+
+      this.spherePositions.push(m.position.clone());
+      this.sphereScales.push(s * s);
+
+      m.__phi = phi;
+      m.__theta = theta;
+      m.__r = r;
+      m.__scale = s;
+      m.__scaleFactor = 1. - (s - 5) / 25;
+      m.__speed = new THREE.Vector3(0, 0, 0);
+      m.__rotAxis = new THREE.Vector3(.5 - Math.random(), .5 - Math.random(), .5 - Math.random());
+      m.__rotAxis.normalize();
+      m.__angle = 2 * Math.PI * Math.random();
+      m.__rotSpeed = .01 + .02 * Math.random();
+      this.spheres.push(m);
+
+    }
+
+    // addSphere( new THREE.Vector3( 10, 10, 10 ), 10 );
+    // addSphere( new THREE.Vector3( -10, -10, -10 ), 20 );
+    // addSphere( new THREE.Vector3( -300, -10, -10 ), 20 );
+
+    for (var j = 0; j < this.spheres.length; j++) {
+      this.spheres[j].material.uniforms.positions.value = this.spherePositions;
+      this.spheres[j].material.uniforms.scales.value = this.sphereScales;
+    }
+
+    this.material = material;
+
+  }
+
+  var sphereScratch = {
+    center: new THREE.Vector3(),
+    tmp: new THREE.Vector3(),
+    repulsion: new THREE.Vector3(),
+    dir: new THREE.Vector3()
+  };
+
+  SpheresEffect.prototype.update = function(t) {
+
+    var spheresCenter = sphereScratch.center.set(0, 0, 0);
+    var velocity = .05;
+    var tmpVector = sphereScratch.tmp;
+    var repulsion = sphereScratch.repulsion;
+    var dir = sphereScratch.dir;
+    var spheres = this.spheres;
+
+    for (var j = 0; j < spheres.length; j++) {
+
+      spheres[j].rotateOnAxis(spheres[j].__rotAxis, spheres[j].__rotSpeed);
+
+      repulsion.set(0, 0, 0);
+      dir.set(0, 0, 0);
+
+      tmpVector.set(-10, 5, 0);
+      tmpVector.sub(spheres[j].position);
+      tmpVector.normalize();
+      dir.add(tmpVector);
+
+      tmpVector.set(-10, 5, 0);
+      tmpVector.sub(spheres[j].position);
+      tmpVector.normalize();
+      dir.add(tmpVector);
+
+      tmpVector.copy(spheresCenter);
+      tmpVector.sub(spheres[j].position);
+      tmpVector.normalize();
+      dir.add(tmpVector);
+
+      dir.normalize();
+      //dir.multiplyScalar( 10. * ( .5 + .5 * spheres[ j ].__scaleFactor ) );
+
+      for (var i = j; i < spheres.length; i++) {
+        tmpVector.copy(spheres[j].position);
+        tmpVector.sub(spheres[i].position);
+        var d = tmpVector.length();
+        d -= .5 * spheres[j].__scale;
+        d -= .5 * spheres[i].__scale;
+        if (d < 0) {
+          repulsion.add(tmpVector);
+          //playSound();
+        }
+      }
+      repulsion.normalize();
+      repulsion.multiplyScalar(5.);
+      dir.add(repulsion);
+
+      //dir.normalize();
+
+      velocity = .1 * (2. * (.8 + .2 * spheres[j].__scaleFactor));
+
+      dir.multiplyScalar(velocity); /// spheres[ j ].__scale );
+      tmpVector.copy(dir).sub(spheres[j].__speed).multiplyScalar(.01);
+      spheres[j].__speed.add(tmpVector);
+
+      spheres[j].position.add(spheres[j].__speed);
+    }
+
+    for (var j = 0; j < spheres.length; j++) {
+      this.spherePositions[j].copy(spheres[j].position);
+      spheresCenter.add(spheres[j].position);
+    }
+    spheresCenter.divideScalar(spheres.length);
+
+
+  }
+
+  var pendingTextures = 0;
+
+  function loadTexture(url) {
+    pendingTextures++;
+    return THREE.ImageUtils.loadTexture(url, undefined, function() {
+      pendingTextures--;
+    }, function() {
+      pendingTextures--;
+      console.error('Failed to load ' + url);
+    });
+  }
+
+  var triangles, displacement, quad, quadSmoke, quadParticles, spheres;
+  var clock = new THREE.Clock();
+
+  function init() {
+
+    scene = new THREE.Scene();
+    var aspectRatio = window.innerWidth / window.innerHeight;
+    camera = new THREE.PerspectiveCamera(75, aspectRatio, .01, 250);
+    camera.target = new THREE.Vector3(-50, 1.5, 0);
+    camera.position.set(50, 1.5, 0);
+    // end: camera.position.set(.1, 1.5, 0 )
+
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+    container.appendChild(renderer.domElement);
+    renderer.domElement.style.display = 'none';
+    var pixelRatioScale = .5;
+    renderer.setPixelRatio(pixelRatioScale * window.devicePixelRatio);
+    renderer.setClearColor(0);
+    var textureLOD = null; //renderer.context.getExtension( 'EXT_shader_texture_lod' );
+
+    composer = new WAGNER.Composer(renderer, { useRGBA: true });
+    effectComposer = new WAGNER.Composer(renderer, { useRGBA: true });
+
+    bleachPass = new WAGNER.BleachPass();
+    vignettePass = new WAGNER.Vignette2Pass();
+    vignettePass.params.boost = vignettePass.params.reduction = 1;
+    fxaaPass = new WAGNER.FXAAPass();
+    noisePass = new WAGNER.NoisePass();
+    noisePass.params.speed = .1;
+    blendPass = new WAGNER.BlendPass();
+    ledPass = new WAGNER.LEDPass();
+    blurPass = new WAGNER.FullBoxBlurPass();
+    rgbPass = new WAGNER.RGBSplitPass();
+    rgbPass.params.delta.set(50, 50);
+    pixelatePass = new WAGNER.PixelatePass();
+    glitchPass = new WAGNER.GlitchPass();
+    bordersPass = new WAGNER.SobelEdgeDetectionPass();
+    glowPass = new WAGNER.MultiPassBloomPass();
+    glowPass.params.blurAmount = 1;
+    depthMixPass = new WAGNER.DepthMixPass();
+    cgaPass = new WAGNER.CGAPass();
+
+    /*controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.y = 1;
+    controls.update();
+    controls.rotateSpeed = .1;
+    controls.keyPanSpeed = .1;
+    controls.zoomSpeed = .1;
+    controls.target.y = camera.position.y;*/
+
+    triangles = new TrianglesEffect(renderer, composer);
+    triangles.init(50);
+    this.renderer.render(triangles.scene, camera);
+
+    spheres = new SpheresEffect(renderer, composer);
+    spheres.init(50);
+    this.renderer.render(spheres.scene, camera);
+
+    displacement = new DisplacementEffect(renderer, composer);
+
+    quad = new QuadEffect(renderer, composer);
+
+    quadSmoke = new QuadEffect(renderer, composer);
+
+    quadParticles = new QuadEffect(renderer, composer);
+
+    function loadShaders() {
+
+      var sL = new ShaderLoader()
+      sL.add('depth-vs', 'Wagner/vertex-shaders/packed-depth-vs.glsl');
+      sL.add('depth-fs', 'Wagner/fragment-shaders/packed-depth-fs.glsl');
+      sL.add('vs', 'Wagner/vertex-shaders/basic-vs.glsl');
+      sL.add('fs', 'assets/circle-fs.glsl');
+      sL.add('fs2', 'assets/cabbibo-smoke-fs.glsl');
+      sL.add('fs3', 'assets/cabbibo-particles-fs.glsl');
+      sL.add('displacement-vs', 'assets/displacement-vs.glsl');
+      sL.add('displacement-fs', 'assets/displacement-fs.glsl');
+      sL.load();
+      sL.onLoaded(function() {
+
+        depthMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            mNear: { type: 'f', value: camera.near },
+            mFar: { type: 'f', value: camera.far }
+          },
+          vertexShader: this.get('depth-vs'),
+          fragmentShader: this.get('depth-fs'),
+          shading: THREE.SmoothShading,
+          side: THREE.DoubleSide
+        });
+
+        var m = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { type: 'f', value: 0 }
+          },
+          vertexShader: this.get('vs'),
+          fragmentShader: this.get('fs'),
+          shading: THREE.SmoothShading,
+          side: THREE.DoubleSide
+        });
+        quad.init(140, 0, m);
+        renderer.render(quad.scene, camera);
+
+        var m = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { type: 'f', value: 0 }
+          },
+          vertexShader: this.get('vs'),
+          fragmentShader: this.get('fs2'),
+          shading: THREE.SmoothShading,
+          side: THREE.DoubleSide
+        });
+        quadSmoke.init(140, 0, m);
+        renderer.render(quadSmoke.scene, camera);
+
+        var m = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { type: 'f', value: 0 }
+          },
+          vertexShader: this.get('vs'),
+          fragmentShader: this.get('fs3'),
+          shading: THREE.SmoothShading,
+          side: THREE.DoubleSide
+        });
+        quadParticles.init(140, 0, m);
+        renderer.render(quadParticles.scene, camera);
+
+        var m = new THREE.ShaderMaterial({
+          uniforms: {
+            time: { type: 'f', value: 0 },
+            tMatCap: { type: 't', value: loadTexture('assets/matcap2.jpg') }
+          },
+          vertexShader: this.get('displacement-vs'),
+          fragmentShader: this.get('displacement-fs'),
+          shading: THREE.SmoothShading,
+          side: THREE.DoubleSide
+        });
+        displacement.init(m);
+        renderer.render(displacement.scene, camera);
+
+        loadAudio();
+
+      });
+
+    }
+
+    window.addEventListener('resize', onWindowResize);
+
+    onWindowResize();
+
+    function prepare() {
+
+      var effectMaterial = new THREE.MeshNormalMaterial();
+      effectPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(221, 100),
+        effectMaterial
+      );
+      effectPlane.rotation.y = Math.PI / 2;
+      effectPlane.position.x = -10;
+      scene.add(effectPlane);
+
+      monolithMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          fogColor: { type: 'c', value: new THREE.Color(fogColor) },
+          skyMap: { type: 't', value: loadTexture('assets/sky7.jpg') }
+        },
+        vertexShader: document.getElementById('monolith-vs').textContent,
+        fragmentShader: document.getElementById('monolith-fs').textContent
+      });
+
+      var s = .1;
+      monolithModel = new THREE.Mesh(
+        new THREE.BoxGeometry(s * 1, s * 9, s * 4, 10, 90, 40),
+        //new THREE.IcosahedronGeometry( s * 1, 3 ),
+        monolithMaterial
+      );
+      monolithModel.position.y = 1.5;
+      scene.add(monolithModel);
+
+      skyMaterial = new THREE.MeshBasicMaterial({
+        //map: loadTexture( 'assets/sky7.jpg' ),
+        color: fogColor,
+        side: THREE.BackSide
+      });
+
+      skyModel = new THREE.Mesh(
+        new THREE.SphereGeometry(200, 30, 30),
+        skyMaterial
+      );
+
+      scene.add(skyModel);
+
+      terrainMaterial = new THREE.MeshBasicMaterial({
+        //map: loadTexture( 'assets/8k_desert_texture_tileable_by_sga_maddin-d495dg1.jpg' )
+        map: loadTexture('assets/terrain_heights.jpg')
+      });
+      terrainMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          showDepth: { type: 'i', value: 0 },
+          mNear: { type: 'f', value: camera.near },
+          mFar: { type: 'f', value: camera.far },
+          time: { type: 'f', value: 0 },
+          displacement: { type: 'f', value: 0 },
+          fogColor: { type: 'c', value: new THREE.Color(fogColor) },
+          heightMap: { type: 't', value: loadTexture('assets/terrain_heights.jpg') },
+          normalMap: { type: 't', value: loadTexture('assets/CC0-river-rock-NRM.png') },
+          shadowMap: { type: 't', value: loadTexture('assets/shadow.jpg') },
+          detailNormalMap: { type: 't', value: displacementTexture },
+          diffuseMap: { type: 't', value: loadTexture(
+              'assets/8k_desert_texture_tileable_by_sga_maddin-d495dg1.jpg') },
+          rockMap: { type: 't', value: loadTexture('assets/rock.jpg') },
+          cloudMap: { type: 't', value: loadTexture('assets/clouds.jpg') },
+          skyMap: { type: 't', value: loadTexture('assets/sky7.jpg') }
+        },
+        vertexShader: document.getElementById('landscape-vs').textContent,
+        fragmentShader: document.getElementById('landscape-fs').textContent,
+        side: THREE.DoubleSide
+      });
+
+      terrainModel = new THREE.Mesh(
+        new THREE.PlaneGeometry(100, 100, 100, 100),
+        //new THREE.IcosahedronGeometry( 1, 3 ),
+        terrainMaterial
+      );
+      terrainModel.geometry.computeTangents();
+
+      terrainModel.material.uniforms.normalMap.value.wrapS = terrainModel.material.uniforms.normalMap.value.wrapT =
+        terrainModel.material.uniforms.detailNormalMap.value.wrapS = terrainModel.material.uniforms.detailNormalMap.value
+        .wrapT =
+        terrainModel.material.uniforms.diffuseMap.value.wrapS = terrainModel.material.uniforms.diffuseMap.value.wrapT =
+        terrainModel.material.uniforms.rockMap.value.wrapS = terrainModel.material.uniforms.rockMap.value.wrapT =
+        terrainModel.material.uniforms.heightMap.value.wrapS = terrainModel.material.uniforms.heightMap.value.wrapT =
+        THREE.RepeatWrapping;
+
+      terrainModel.rotation.x = -Math.PI / 2;
+
+      scene.add(terrainModel);
+
+      loadShaders();
+
+    }
+
+    function loadAudio() {
+
+      audio = new Audio();
+      audio.addEventListener('canplay', function() {
+        whenReady(showStart);
+      }, { once: true });
+
+      audio.setAttribute('src', 'assets/track.mp3');
+
+    }
+
+    function whenReady(callback) {
+
+      var passes = [composer.copyPass, effectComposer.copyPass, bleachPass, vignettePass, fxaaPass,
+        noisePass, blurPass, pixelatePass, glitchPass, bordersPass, glowPass, depthMixPass];
+      // Pass.isLoaded() returns undefined on the first call after loading, so ask twice
+      var passesLoaded = passes.every(function(p) { return p.isLoaded() || p.isLoaded(); });
+
+      if (pendingTextures > 0 || !passesLoaded) {
+        setTimeout(function() { whenReady(callback); }, 50);
+        return;
+      }
+
+      warmUp();
+      callback();
+
+    }
+
+    function showStart() {
+
+      var loading = document.getElementById('loading');
+      loading.style.opacity = 0;
+
+      var start = document.getElementById('start');
+      start.style.opacity = 1;
+      start.addEventListener('click', function(e) {
+
+        var elem = document.body;
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+          elem.msRequestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+          elem.mozRequestFullScreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        }
+
+        start.style.opacity = 0;
+        setTimeout(function() {
+          start.style.display = 'none';
+          ready();
+        }, 1000);
+
+        e.preventDefault();
+
+      }, { once: true });
+
+    }
+
+    function ready() {
+
+      renderer.domElement.style.display = 'block';
+      clock.start();
+      audio.play();
+      render();
+
+    }
+
+    window.addEventListener('keydown', function(e) {
+      /*if( e.keyCode == 32 ) {
+        startTime = Date.now();
+        audio.currentTime = 0;
+      }*/
+    })
+
+    var l = new THREE.LoadingManager(
+      function() { console.log('onLoad');
+        prepare(); },
+      function(item, loaded, total) {
+        //progressIndicator( loaded * 90 / total )
+      },
+      function() { console.log('onError') }
+    );
+    var t = new THREE.TextureLoader(l);
+
+    var displacementTexture, diffuseTexture, specularTexture, normalTexture;
+
+    t.load('assets/displacement.jpg', function(t) { displacementTexture = t; });
+
+    /*var m = new THREE.OBJLoader( l );
+    m.load( 'assets/hall.obj', function( m ) { terrainModel = m; } );
+    m.load( 'assets/orb.obj', function( m ) { monolithModel = m; } );*/
+
+  }
+
+  var playhead = { audio: 0, wall: 0 };
+
+  // audio.currentTime advances in coarse, uneven steps: follow the wall clock and resync only on drift
+  function getTime() {
+
+    var now = performance.now() / 1000;
+
+    if (audio.paused || audio.ended || audio.currentTime === 0) {
+      playhead.audio = audio.currentTime;
+      playhead.wall = now;
+      return audio.currentTime;
+    }
+
+    var t = playhead.audio + now - playhead.wall;
+    if (Math.abs(t - audio.currentTime) > .1) {
+      t = playhead.audio = audio.currentTime;
+      playhead.wall = now;
+    }
+
+    return Math.min(t, audio.duration);
+
+  }
+
+  function render() {
+
+    requestAnimationFrame(render);
+
+    var t = Math.min(clock.getDelta(), .1);
+    var et = getTime();
+
+    draw(t, et, {
+      effect: parseInt(story.get('effect', et), 10),
+      fade: story.get('fade', et),
+      effectOpacity: story.get('effectOpacity', et),
+      glitchDisplacement: story.get('glitchDisplacement', et),
+      pixelateAmount: story.get('pixelateAmount', et),
+      edgeDetection: story.get('edgeDetection', et),
+      blurAmount: story.get('blurAmount', et),
+      overallDistortion: story.get('overallDistortion', et),
+      credits: story.get('credits', et)
+    });
+
+  }
+
+  // draw every effect with every pass enabled so shaders compile and textures upload before playback
+  function warmUp() {
+
+    for (var effect = 0; effect <= 4; effect++) {
+      draw(0, 0, {
+        effect: effect, fade: 1, effectOpacity: 1, glitchDisplacement: 1, pixelateAmount: 100,
+        edgeDetection: 1, blurAmount: 1, overallDistortion: 1, credits: 0
+      });
+    }
+
+  }
+
+  function draw(t, et, s) {
+
+    meter.textContent = et;
+
+    camera.position.set(40 - (39.9 * et / audio.duration), 1.5, 0);
+    camera.lookAt(camera.target);
+
+    skyModel.position.copy(camera.position);
+
+    effectPlane.visible = false;
+    skyModel.material = depthMaterial;
+    skyModel.visible = terrainModel.visible = monolithModel.visible = true;
+    monolithModel.material = depthMaterial;
+    terrainModel.material.uniforms.time.value = et;
+    terrainModel.material.uniforms.showDepth.value = 1;
+    renderer.render(scene, camera, terrainDepth);
+
+    skyModel.material = skyMaterial;
+    terrainModel.material.uniforms.showDepth.value = 0;
+    monolithModel.material = monolithMaterial;
+    renderer.render(scene, camera, terrainTexture);
+
+    composer.reset();
+    composer.setSource(terrainDepth);
+    composer.toScreen();
+
+    /*skyModel.visible = terrainModel.visible = false;
+    monolithModel.visible = true;
+    monolithModel.material = depthMaterial;
+    renderer.render( scene, camera, monolithDepth );
+
+    terrainModel.material.uniforms.showDepth.value = 0;
+    monolithModel.material = monolithMaterial;
+    renderer.render( scene, camera, monolithTexture );*/
+
+    renderer.setClearColor(0, 0);
+    composer.reset();
+    composer.setSource(terrainDepth);
+    //composer.toScreen();
+
+    vignettePass.params.boost = s.fade;
+    depthMixPass.params.opacity = s.effectOpacity;
+    //console.log( et, depthMixPass.params.opacity );
+    var effectNum = s.effect;
+    //effectNum = ( Math.floor( .1 * audio.currentTime ) % 4 ) + 1 ;
+
+    switch (effectNum) {
+      case 0:
+        {
+          renderer.render(triangles.scene, camera, effectTexture);
+          break;
+        }
+      case 1:
+        {
+          triangles.update(t);
+          renderer.render(triangles.scene, camera, effectTexture);
+          break;
+        }
+      case 2:
+        {
+          displacement.update(et);
+          renderer.render(displacement.scene, camera, effectTexture);
+          break;
+        }
+      case 3:
+        {
+          quadParticles.update(et);
+          renderer.render(quadParticles.scene, camera, effectTexture);
+          break;
+        }
+      case 4:
+        {
+          spheres.update(et);
+          renderer.render(spheres.scene, camera, effectTexture);
+          break;
+        }
+    }
+
+    effectPlane.visible = true;
+    effectPlane.material = depthMaterial;
+    skyModel.visible = terrainModel.visible = monolithModel.visible = false;
+    renderer.render(scene, camera, effectDepth);
+
+    glitchPass.params.offset += .5 * t;
+
+    var glitchDisplacement = s.glitchDisplacement,
+      pixelateAmount = s.pixelateAmount,
+      edgeDetection = s.edgeDetection;
+
+    glitchPass.params.displacement = glitchDisplacement;
+    pixelatePass.params.amount = pixelateAmount;
+
+    terrainMaterial.uniforms.displacement.value = glitchDisplacement;
+
+    if (glitchDisplacement != 0 || pixelateAmount != 0 || edgeDetection != 0) {
+
+      effectComposer.reset();
+      effectComposer.setSource(effectTexture);
+      if (glitchDisplacement != 0) {
+        effectComposer.pass(glitchPass);
+      }
+      if (pixelateAmount != 0) {
+        effectComposer.pass(pixelatePass);
+      }
+      if (edgeDetection != 0) {
+        effectComposer.pass(bordersPass);
+      }
+      effectComposer.toTexture(effectTexture);
+    }
+
+    if (glitchDisplacement != 0 || pixelateAmount != 0) {
+
+      effectComposer.reset();
+      effectComposer.setSource(effectDepth);
+      if (glitchDisplacement != 0) {
+        effectComposer.pass(glitchPass);
+      }
+      if (pixelateAmount != 0) {
+        effectComposer.pass(pixelatePass);
+      }
+      effectComposer.toTexture(effectDepth);
+    }
+
+    /*effectComposer.reset();
+    effectComposer.setSource( terrainTexture );
+    effectComposer.pass( glitchPass );
+    effectComposer.toTexture( terrainTexture );
+
+    effectComposer.reset();
+    effectComposer.setSource( terrainDepth );
+    effectComposer.pass( glitchPass );
+    effectComposer.toTexture( terrainDepth );*/
+
+    composer.reset();
+
+    depthMixPass.params.tInput1 = terrainTexture;
+    depthMixPass.params.tDepth1 = terrainDepth;
+    depthMixPass.params.tInput2 = effectTexture;
+    depthMixPass.params.tDepth2 = effectDepth;
+    //depthMixPass.params.tInput3 = monolithTexture;
+    //depthMixPass.params.tDepth3 = monolithDepth;
+
+    composer.pass(depthMixPass);
+
+    //composer.pass( glitchPass );
+
+    var blurAmount = s.blurAmount;
+    if (blurAmount != 0.) {
+      blurPass.params.amount = blurAmount;
+      composer.pass(blurPass);
+    }
+
+    var distortionAmount = s.overallDistortion;
+    if (distortionAmount != 0.) {
+      glitchPass.params.amount = distortionAmount * 10;
+      composer.pass(glitchPass);
+    }
+
+    composer.pass(bleachPass);
+    composer.pass(glowPass);
+    composer.pass(vignettePass);
+    composer.pass(fxaaPass);
+    composer.pass(noisePass);
+
+    composer.toScreen();
+
+    credits.style.opacity = s.credits;
+
+  }
+
+  function onWindowResize() {
+
+    container.style.height = (container.clientWidth / 2.21) + 'px';
+
+    var w = container.clientWidth,
+      h = container.clientHeight;
+
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    composer.setSize(renderer.domElement.width, renderer.domElement.height);
+    effectComposer.setSize(renderer.domElement.width, renderer.domElement.height);
+
+    terrainTexture = WAGNER.Pass.prototype.getOfflineTexture(composer.width, composer.height);
+    monolithTexture = WAGNER.Pass.prototype.getOfflineTexture(composer.width, composer.height, true);
+    effectTexture = WAGNER.Pass.prototype.getOfflineTexture(composer.width, composer.height, true);
+
+    terrainDepth = WAGNER.Pass.prototype.getOfflineTexture(composer.width, composer.height);
+    monolithDepth = WAGNER.Pass.prototype.getOfflineTexture(composer.width, composer.height);
+    effectDepth = WAGNER.Pass.prototype.getOfflineTexture(composer.width, composer.height);
+
+  }
+
+  window.addEventListener('load', init);
+  </script>
+</body>
+
+</html>
+<!--<script src="//cdn.webglstats.com/stat.js" defer="defer" async="async"></script>-->
