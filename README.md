@@ -2,7 +2,7 @@
 
 A WebGL demo released at NVSCENE 2015, where it placed 5th.
 
-**Live:** https://www.clicktorelease.com/code/monolith
+**Live:** https://spite.github.io/monolith/
 
 The camera drifts across a desert towards a black monolith. A set of effects plays in front of it, all synced to the soundtrack: tumbling triangles, a noise-displaced blob, a particle field and a cluster of ambient-occluded spheres. Everything passes through a chain of post-processing passes.
 
