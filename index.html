@@ -19,13 +19,16 @@
     *{box-sizing: border-box; margin: 0; padding: 0; }
     body{overflow:hidden; background-color: black; font-family: Montserrat, sans-serif; color: white; white-space: nowrap; background-color: black; }
     #container{ position: absolute; left: 0; top: 50%; right: 0; width: 100%; height: 100%; transform: translate3d( 0, -50%, 0 ); -webkit-transform: translate3d( 0, -50%, 0 );}
-    #credits{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 ); text-transform: uppercase ; text-align: center; pointer-events: none; opacity: 0;}
+    #credits{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 ); text-transform: uppercase ; text-align: center; pointer-events: none; opacity: 0; visibility: hidden;}
+    #credits .repo{ margin-top: 40px; font-size: 14px; text-transform: lowercase; }
+    .repo a{ color: white; pointer-events: auto; }
     #credits h1{ font-size: 50px;}
     #credits h2{ font-size: 25px; text-transform: lowercase; margin-bottom: 80px;}
     #credits h3{ font-size: 18px; text-transform: lowercase;  }
     #meter{ position: absolute; left: 10px; top: 10px; z-index: 100; color: #ff00ff; display: none;}
     #start{ position: absolute;; left: 0; top: 0; right: 0; bottom: 0; opacity: 0; transition: opacity 1s ease-out; webkit-transition: opacity 1s ease-out; text-align: center}
     #start p{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 );}
+    #start p.repo{ top: auto; bottom: 40px; -webkit-transform: translate3d( -50%, 0, 0 ); transform: translate3d( -50%, 0, 0 ); font-size: 14px; }
     #loading{ position: absolute;; left: 0; top: 0; right: 0; bottom: 0; transition: opacity 1s ease-out; webkit-transition: opacity 1s ease-out; text-align: center; pointer-events: none;}
     #loading p{ position: absolute; left: 50%; top: 50%; -webkit-transform: translate3d( -50%, -50%, 0 ); transform: translate3d( -50%, -50%, 0 );}
   </style>
@@ -38,10 +41,12 @@
     <h2>awwz · cabbibo · spite</h2>
     <h3>farbrausch kewlers mfx xplsv threepixels</h3>
     <h3>tbl asd rgba exceed fairlight excess tpolm</h3>
+    <p class="repo"><a href="https://github.com/spite/monolith" target="_blank" rel="noopener">github.com/spite/monolith</a></p>
   </div>
   <div id="meter"></div>
   <div id="start">
     <p>Click to start</p>
+    <p class="repo"><a href="https://github.com/spite/monolith" target="_blank" rel="noopener">github.com/spite/monolith</a></p>
   </div>
   <div id="loading">
     <p>Loading...</p>
@@ -488,6 +493,11 @@ void main(){
   var fogColor = 0x505050;
 
   var meter = document.getElementById('meter');
+
+  // following the repo link shouldn't also start the demo
+  document.querySelector('#start .repo a').addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
 
   function LayerEffect(renderer, composer) {
 
@@ -1366,6 +1376,7 @@ void main(){
     composer.toScreen();
 
     credits.style.opacity = s.credits;
+    credits.style.visibility = s.credits > 0 ? 'visible' : 'hidden';
 
   }
 
